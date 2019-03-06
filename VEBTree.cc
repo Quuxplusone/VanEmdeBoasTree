@@ -1,7 +1,11 @@
 #include <stdlib.h>
+#include <memory>
 #include "VEBTree.h"
 
-#define WORD sizeof(uint)*8
+typedef unsigned int uint;
+typedef unsigned char uchar;
+
+#define WORD (8 * sizeof(unsigned int))
 
 static uint clz(uint x)
 {
@@ -15,7 +19,7 @@ static uint ctz(uint x)
 
 static uint fls(uint x)
 {
-  return WORD-clz(x);
+  return WORD - clz(x);
 }
 
 static uint
@@ -55,35 +59,34 @@ highbits(uint x, uint k)
 }
 
 static uint
-decode(uchar D[], uint b)
+decode(const unsigned char *D, uint b)
 {
     uint x = 0;
-    for (int i = 0; i < b; ++i)
+    for (uint i = 0; i < b; ++i)
         x |= D[i]<<8*i;
     return x;
 }
 
 static void
-encode(uchar D[], uint b, uint x)
+encode(unsigned char *D, uint b, uint x)
 {
-    for (int i = 0; i < b; ++i)
+    for (uint i = 0; i < b; ++i)
         D[i] = (x>>8*i)&0xff;
 }
 
 static void
-set(uchar D[], uint x)
+set(unsigned char *D, uint x)
 {
     D[x/8] |= (1<<x%8);
 }
 
 static void
-unset(uchar D[], uint x)
+unset(unsigned char *D, uint x)
 {
     D[x/8] &= ~(1<<x%8);
 }
 
-static uint
-low(Veb T)
+static uint low(VebViewConst T)
 {
     if (T.M <= WORD) {
         uint x = decode(T.D,bytes(T.M));
@@ -95,7 +98,7 @@ low(Veb T)
 }
 
 static void
-setlow(Veb T, uint x)
+setlow(VebView T, uint x)
 {
     if (T.M <= WORD)
         set(T.D,x);
@@ -103,8 +106,7 @@ setlow(Veb T, uint x)
         encode(T.D,bytes(T.k),x);
 }
 
-static uint
-high(Veb T)
+static uint high(VebViewConst T)
 {
     if (T.M <= WORD) {
         uint x = decode(T.D,bytes(T.M));
@@ -116,7 +118,7 @@ high(Veb T)
 }
 
 static void
-sethigh(Veb T, uint x)
+sethigh(VebView T, uint x)
 {
     if (T.M <= WORD)
         set(T.D,x);
@@ -124,8 +126,7 @@ sethigh(Veb T, uint x)
         encode(T.D+bytes(T.k),bytes(T.k),x);
 }
 
-uint
-vebsize(uint M)
+unsigned int vebsize(unsigned int M)
 {
     if (M <= WORD)
         return bytes(M);
@@ -135,20 +136,20 @@ vebsize(uint M)
     return 2*bytes(k)+vebsize(m)+(m-1)*vebsize(n)+vebsize(M-(m-1)*n);
 }
 
-static Veb
-aux(Veb S)
+template<class VV>
+static VV aux(VV S)
 {
-    Veb T;
+    VV T;
     T.k = S.k-S.k/2;
     T.D = S.D+2*bytes(S.k);
     T.M = highbits(S.M-1,S.k/2)+1;
     return T;
 }
 
-static Veb
-branch(Veb S, uint i)
+template<class VV>
+static VV branch(VV S, uint i)
 {
-    Veb T;
+    VV T;
     uint k = S.k/2;
     uint m = highbits(S.M-1,k)+1;
     uint n = ipow(k);
@@ -164,7 +165,7 @@ branch(Veb S, uint i)
 }
 
 static int
-empty(Veb T)
+empty(VebViewConst T)
 {
     if (T.M <= WORD)
         return decode(T.D,bytes(T.M))==0;
@@ -174,7 +175,7 @@ empty(Veb T)
 }
 
 static void
-mkempty(Veb T)
+mkempty(VebView T)
 {
     if (T.M <= WORD) {
         encode(T.D,bytes(T.M),0);
@@ -184,12 +185,12 @@ mkempty(Veb T)
     sethigh(T,0);
     mkempty(aux(T));
     uint m = highbits(T.M-1,T.k/2)+1;
-    for (int i = 0; i < m; ++i)
+    for (uint i = 0; i < m; ++i)
         mkempty(branch(T,i));
 }
 
 static void
-mkfull(Veb T)
+mkfull(VebView T)
 {
     if (T.M <= WORD) {
         encode(T.D,bytes(T.M),ones(T.M));
@@ -199,8 +200,8 @@ mkfull(Veb T)
     sethigh(T,T.M-1);
     mkfull(aux(T));
     uint m = highbits(T.M-1,T.k/2)+1;
-    for (int i = 0; i < m; ++i) {
-        Veb B = branch(T,i);
+    for (uint i = 0; i < m; ++i) {
+        VebView B = branch(T,i);
         mkfull(B);
         if (i == 0)
             vebdel(B,0);
@@ -209,22 +210,19 @@ mkfull(Veb T)
     }
 }
 
-Veb
-vebnew(uint M, int full)
+VebTree::VebTree(unsigned M, bool full)
 {
-    Veb T;
-    T.k = fls(M-1);
-    T.D = new unsigned char[vebsize(M)];
-    T.M = M;
-    if (full)
-        mkfull(T);
-    else
-        mkempty(T);
-    return T;
+    this->k = fls(M-1);
+    this->D = std::make_unique<unsigned char[]>(vebsize(M));
+    this->M = M;
+    if (full) {
+        mkfull(this->view());
+    } else {
+        mkempty(this->view());
+    }
 }
 
-void
-vebput(Veb T, uint x)
+void vebput(VebView T, unsigned int x)
 {
     if (x >= T.M)
         return;
@@ -254,14 +252,13 @@ vebput(Veb T, uint x)
     }
     uint i = highbits(x,T.k/2);
     uint j = lowbits(x,T.k/2);
-    Veb B = branch(T,i);
+    VebView B = branch(T,i);
     vebput(B,j);
     if (low(B) == high(B))
         vebput(aux(T),i);
 }
 
-void
-vebdel(Veb T, uint x)
+void vebdel(VebView T, unsigned int x)
 {
     if (empty(T) || x >= T.M)
         return;
@@ -279,7 +276,8 @@ vebdel(Veb T, uint x)
         return;
     }
     uint i,j;
-    Veb B, A = aux(T);
+    VebView B;
+    VebView A = aux(T);
     if (x == lo) {
         if (empty(A)) {
             setlow(T,hi);
@@ -310,8 +308,7 @@ vebdel(Veb T, uint x)
         vebdel(A,i);
 }
 
-uint
-vebsucc(Veb T, uint x)
+unsigned int vebsucc(VebViewConst T, unsigned int x)
 {
     uint hi = high(T);
     if (empty(T) || x > hi)
@@ -326,12 +323,12 @@ vebsucc(Veb T, uint x)
     uint lo = low(T);
     if (x <= lo)
         return lo;
-    Veb A = aux(T);
+    VebViewConst A = aux(T);
     if (empty(A) || x == hi)
         return hi;
     uint i = highbits(x,T.k/2);
     uint j = lowbits(x,T.k/2);
-    Veb B = branch(T,i);
+    VebViewConst B = branch(T,i);
     if (!empty(B) && j <= high(B))
         return i*ipow(T.k/2)+vebsucc(B,j);
     i = vebsucc(A,i+1);
@@ -341,8 +338,7 @@ vebsucc(Veb T, uint x)
     return i*ipow(T.k/2)+low(B);
 }
 
-uint
-vebpred(Veb T, uint x)
+unsigned int vebpred(VebViewConst T, unsigned int x)
 {
     uint lo = low(T);
     if (empty(T) || x < lo || x >= T.M)
@@ -357,12 +353,12 @@ vebpred(Veb T, uint x)
     uint hi = high(T);
     if (x >= hi)
         return hi;
-    Veb A = aux(T);
+    VebViewConst A = aux(T);
     if (empty(A) || x == lo)
         return lo;
     uint i = highbits(x,T.k/2);
     uint j = lowbits(x,T.k/2);
-    Veb B = branch(T,i);
+    VebViewConst B = branch(T,i);
     if (!empty(B) && j >= low(B))
         return i*ipow(T.k/2)+vebpred(B,j);
     i = vebpred(A,i-1);
