@@ -6,47 +6,37 @@ typedef unsigned int uint;
 
 #define BITS_PER_WORD (8 * sizeof(unsigned int))
 
-static uint clz(uint x)
+static uint count_leading_zeros(uint x)
 {
     return __builtin_clz(x);
 }
 
-static uint ctz(uint x)
+static uint count_trailing_zeros(uint x)
 {
     return __builtin_ctz(x);
 }
 
-static uint fls(uint x)
-{
-    return BITS_PER_WORD - clz(x);
-}
-
-static uint
-bytes(uint x)
+static uint bytes(uint x)
 {
     return x/8 + (x%8>0);
 }
 
-static uint
-zeros(uint k)
+static uint zeros(uint k)
 {
     return ~0<<k;
 }
 
-static uint
-ones(uint k)
+static uint ones(uint k)
 {
     return ~zeros(k);
 }
 
-static uint
-lowbits(uint x, uint k)
+static uint lowbits(uint x, uint k)
 {
     return x&ones(k);
 }
 
-static uint
-highbits(uint x, uint k)
+static uint highbits(uint x, uint k)
 {
     return x>>k;
 }
@@ -88,7 +78,7 @@ static uint low(VebViewConst T)
         if (x == 0) {
             return T.M;
         }
-        return ctz(x);
+        return count_trailing_zeros(x);
     }
     return decode(T.D, bytes(T.k));
 }
@@ -110,7 +100,7 @@ static uint high(VebViewConst T)
         if (x == 0) {
             return T.M;
         }
-        return fls(x)-1;
+        return BITS_PER_WORD - count_leading_zeros(x) - 1;
     }
     return decode(T.D + bytes(T.k), bytes(T.k));
 }
@@ -130,7 +120,7 @@ unsigned int vebsize(unsigned int M)
     if (M <= BITS_PER_WORD) {
         return bytes(M);
     }
-    uint k = fls(M-1);
+    uint k = BITS_PER_WORD - count_leading_zeros(M - 1);
     uint m = highbits(M-1, k/2) + 1;
     uint n = 1u << (k/2);
     return 2*bytes(k) + vebsize(m) + (m-1)*vebsize(n) + vebsize(M-(m-1)*n);
@@ -158,7 +148,7 @@ static VV branch(VV S, uint i)
         T.k = k;
     } else {
         T.M = S.M - (m-1)*n;
-        T.k = fls(T.M-1);
+        T.k = BITS_PER_WORD - count_leading_zeros(T.M - 1);
     }
     T.D = S.D + 2*bytes(S.k) + vebsize(m) + i*vebsize(n);
     return T;
@@ -214,7 +204,7 @@ void VebView::mkfull() const
 
 VebTree::VebTree(unsigned M, bool full)
 {
-    this->k = fls(M-1);
+    this->k = BITS_PER_WORD - count_leading_zeros(M - 1);
     this->D = std::make_unique<unsigned char[]>(vebsize(M));
     this->M = M;
     if (full) {
@@ -331,7 +321,7 @@ unsigned int VebViewConst::succ(unsigned int x) const
         uint y = decode(T.D, bytes(T.M));
         y &= zeros(x);
         if (y > 0) {
-            return ctz(y);
+            return count_trailing_zeros(y);
         }
         return T.M;
     }
@@ -367,8 +357,8 @@ unsigned int VebViewConst::pred(unsigned int x) const
     if (T.M <= BITS_PER_WORD) {
         uint y = decode(T.D, bytes(T.M));
         y &= ones(x + 1);
-        if (y > 0) {
-            return fls(y)-1;
+        if (y != 0) {
+            return BITS_PER_WORD - count_leading_zeros(y) - 1;
         }
         return T.M;
     }
