@@ -40,12 +40,6 @@ ones(uint k)
 }
 
 static uint
-ipow(uint k)
-{
-    return 1<<k;
-}
-
-static uint
 lowbits(uint x, uint k)
 {
     return x&ones(k);
@@ -138,7 +132,7 @@ unsigned int vebsize(unsigned int M)
     }
     uint k = fls(M-1);
     uint m = highbits(M-1, k/2) + 1;
-    uint n = ipow(k/2);
+    uint n = 1u << (k/2);
     return 2*bytes(k) + vebsize(m) + (m-1)*vebsize(n) + vebsize(M-(m-1)*n);
 }
 
@@ -158,7 +152,7 @@ static VV branch(VV S, uint i)
     VV T;
     uint k = S.k/2;
     uint m = highbits(S.M-1, k) + 1;
-    uint n = ipow(k);
+    uint n = 1u << k;
     if (i < m-1) {
         T.M = n;
         T.k = k;
@@ -300,7 +294,7 @@ void VebTree::vebdel(VebView T, unsigned int x)
             i = low(A);
             B = branch(T, i);
             j = low(B);
-            setlow(T, i*ipow(T.k/2) + j);
+            setlow(T, (i << (T.k/2)) + j);
         }
     } else if (x == hi) {
         if (empty(A)) {
@@ -310,7 +304,7 @@ void VebTree::vebdel(VebView T, unsigned int x)
             i = high(A);
             B = branch(T, i);
             j = high(B);
-            sethigh(T, i*ipow(T.k/2) + j);
+            sethigh(T, (i << (T.k/2)) + j);
         }
     } else {
         i = highbits(x, T.k/2);
@@ -349,14 +343,14 @@ unsigned int VebTree::vebsucc(VebViewConst T, unsigned int x)
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
     if (!empty(B) && j <= high(B)) {
-        return i*ipow(T.k/2) + vebsucc(B, j);
+        return (i << (T.k/2)) + vebsucc(B, j);
     }
     i = vebsucc(A, i + 1);
     if (i == A.M) {
         return hi;
     }
     B = branch(T, i);
-    return i*ipow(T.k/2) + low(B);
+    return (i << (T.k/2)) + low(B);
 }
 
 unsigned int VebTree::vebpred(VebViewConst T, unsigned int x)
@@ -385,12 +379,12 @@ unsigned int VebTree::vebpred(VebViewConst T, unsigned int x)
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
     if (!empty(B) && j >= low(B)) {
-        return i*ipow(T.k/2) + vebpred(B, j);
+        return (i << (T.k/2)) + vebpred(B, j);
     }
     i = vebpred(A, i-1);
     if (i == A.M) {
         return lo;
     }
     B = branch(T, i);
-    return i*ipow(T.k/2) + high(B);
+    return (i << (T.k/2)) + high(B);
 }
