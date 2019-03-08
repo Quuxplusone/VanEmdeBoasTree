@@ -8,6 +8,8 @@ struct VebViewConst {
     unsigned int M;
 
     bool empty() const;
+    unsigned int low() const;
+    unsigned int high() const;
     unsigned int succ(unsigned int) const;
     unsigned int pred(unsigned int) const;
 };
@@ -20,8 +22,12 @@ struct VebView {
     operator VebViewConst() const { return VebViewConst{D, k, M}; }
 
     bool empty() const { return VebViewConst(*this).empty(); }
+    unsigned int low() const { return VebViewConst(*this).low(); }
+    unsigned int high() const { return VebViewConst(*this).high(); }
     void mkfull() const;
     void mkempty() const;
+    void setlow(unsigned int) const;
+    void sethigh(unsigned int) const;
     void del(unsigned int) const;
     void put(unsigned int) const;
 };

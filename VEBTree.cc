@@ -71,8 +71,9 @@ unset(unsigned char *D, uint x)
     D[x/8] &= ~(1u << (x % 8));
 }
 
-static uint low(VebViewConst T)
+uint VebViewConst::low() const
 {
+    VebViewConst T = *this;
     if (T.M <= BITS_PER_WORD) {
         uint x = decode(T.D, bytes(T.M));
         if (x == 0) {
@@ -83,9 +84,9 @@ static uint low(VebViewConst T)
     return decode(T.D, bytes(T.k));
 }
 
-static void
-setlow(VebView T, uint x)
+void VebView::setlow(uint x) const
 {
+    VebView T = *this;
     if (T.M <= BITS_PER_WORD) {
         set(T.D, x);
     } else {
@@ -93,8 +94,9 @@ setlow(VebView T, uint x)
     }
 }
 
-static uint high(VebViewConst T)
+uint VebViewConst::high() const
 {
+    VebViewConst T = *this;
     if (T.M <= BITS_PER_WORD) {
         uint x = decode(T.D, bytes(T.M));
         if (x == 0) {
@@ -105,9 +107,9 @@ static uint high(VebViewConst T)
     return decode(T.D + bytes(T.k), bytes(T.k));
 }
 
-static void
-sethigh(VebView T, uint x)
+void VebView::sethigh(uint x) const
 {
+    VebView T = *this;
     if (T.M <= BITS_PER_WORD) {
         set(T.D, x);
     } else {
@@ -160,7 +162,7 @@ bool VebViewConst::empty() const
     if (T.M <= BITS_PER_WORD) {
         return decode(T.D, bytes(T.M)) == 0;
     }
-    return (low(T) > high(T));
+    return (T.low() > T.high());
 }
 
 void VebView::mkempty() const
@@ -170,8 +172,8 @@ void VebView::mkempty() const
         encode(T.D, bytes(T.M), 0);
         return;
     }
-    setlow(T, 1);
-    sethigh(T, 0);
+    T.setlow(1);
+    T.sethigh(0);
     aux(T).mkempty();
     uint m = highbits(T.M-1, T.k/2) + 1;
     for (uint i = 0; i < m; ++i) {
@@ -186,8 +188,8 @@ void VebView::mkfull() const
         encode(T.D, bytes(T.M), ones(T.M));
         return;
     }
-    setlow(T, 0);
-    sethigh(T, T.M-1);
+    T.setlow(0);
+    T.sethigh(T.M-1);
     aux(T).mkfull();
     uint m = highbits(T.M-1, T.k/2) + 1;
     for (uint i = 0; i < m; ++i) {
@@ -224,23 +226,23 @@ void VebView::put(unsigned int x) const
         return;
     }
     if (T.empty()) {
-        setlow(T, x);
-        sethigh(T, x);
+        T.setlow(x);
+        T.sethigh(x);
         return;
     }
-    uint lo = low(T);
-    uint hi = high(T);
+    uint lo = T.low();
+    uint hi = T.high();
     if (x == lo || x == hi) {
         return;
     }
     if (x < lo) {
-        setlow(T, x);
+        T.setlow(x);
         if (lo == hi) {
             return;
         }
         x = lo;
     } else if (x > hi) {
-        sethigh(T, x);
+        T.sethigh(x);
         if (lo == hi) {
             return;
         }
@@ -250,7 +252,7 @@ void VebView::put(unsigned int x) const
     uint j = lowbits(x, T.k/2);
     VebView B = branch(T, i);
     B.put(j);
-    if (low(B) == high(B)) {
+    if (B.low() == B.high()) {
         aux(T).put(i);
     }
 }
@@ -265,14 +267,14 @@ void VebView::del(unsigned int x) const
         unset(T.D, x);
         return;
     }
-    uint lo = low(T);
-    uint hi = high(T);
+    uint lo = T.low();
+    uint hi = T.high();
     if (x < lo || x > hi) {
         return;
     }
     if (lo == hi && x == lo) {
-        sethigh(T, 0);
-        setlow(T, 1);
+        T.sethigh(0);
+        T.setlow(1);
         return;
     }
     uint i;
@@ -281,23 +283,23 @@ void VebView::del(unsigned int x) const
     VebView A = aux(T);
     if (x == lo) {
         if (A.empty()) {
-            setlow(T, hi);
+            T.setlow(hi);
             return;
         } else {
-            i = low(A);
+            i = A.low();
             B = branch(T, i);
-            j = low(B);
-            setlow(T, (i << (T.k/2)) + j);
+            j = B.low();
+            T.setlow((i << (T.k/2)) + j);
         }
     } else if (x == hi) {
         if (A.empty()) {
-            sethigh(T, lo);
+            T.sethigh(lo);
             return;
         } else {
-            i = high(A);
+            i = A.high();
             B = branch(T, i);
-            j = high(B);
-            sethigh(T, (i << (T.k/2)) + j);
+            j = B.high();
+            T.sethigh((i << (T.k/2)) + j);
         }
     } else {
         i = highbits(x, T.k/2);
@@ -313,7 +315,7 @@ void VebView::del(unsigned int x) const
 unsigned int VebViewConst::succ(unsigned int x) const
 {
     VebViewConst T = *this;
-    uint hi = high(T);
+    uint hi = T.high();
     if (T.empty() || x > hi) {
         return T.M;
     }
@@ -325,7 +327,7 @@ unsigned int VebViewConst::succ(unsigned int x) const
         }
         return T.M;
     }
-    uint lo = low(T);
+    uint lo = T.low();
     if (x <= lo) {
         return lo;
     }
@@ -336,7 +338,7 @@ unsigned int VebViewConst::succ(unsigned int x) const
     uint i = highbits(x, T.k/2);
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
-    if (!B.empty() && j <= high(B)) {
+    if (!B.empty() && j <= B.high()) {
         return (i << (T.k/2)) + B.succ(j);
     }
     i = A.succ(i + 1);
@@ -344,13 +346,13 @@ unsigned int VebViewConst::succ(unsigned int x) const
         return hi;
     }
     B = branch(T, i);
-    return (i << (T.k/2)) + low(B);
+    return (i << (T.k/2)) + B.low();
 }
 
 unsigned int VebViewConst::pred(unsigned int x) const
 {
     VebViewConst T = *this;
-    uint lo = low(T);
+    uint lo = T.low();
     if (T.empty() || x < lo || x >= T.M) {
         return T.M;
     }
@@ -362,7 +364,7 @@ unsigned int VebViewConst::pred(unsigned int x) const
         }
         return T.M;
     }
-    uint hi = high(T);
+    uint hi = T.high();
     if (x >= hi) {
         return hi;
     }
@@ -373,7 +375,7 @@ unsigned int VebViewConst::pred(unsigned int x) const
     uint i = highbits(x, T.k/2);
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
-    if (!B.empty() && j >= low(B)) {
+    if (!B.empty() && j >= B.low()) {
         return (i << (T.k/2)) + B.pred(j);
     }
     i = A.pred(i-1);
@@ -381,5 +383,5 @@ unsigned int VebViewConst::pred(unsigned int x) const
         return lo;
     }
     B = branch(T, i);
-    return (i << (T.k/2)) + high(B);
+    return (i << (T.k/2)) + B.high();
 }
