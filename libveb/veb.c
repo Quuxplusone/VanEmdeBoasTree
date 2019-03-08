@@ -17,6 +17,9 @@ zeros(uint k)
 static uint
 ones(uint k)
 {
+	if (k == WORD) {
+		return ~0u;
+	}
 	return ~zeros(k);
 }
 

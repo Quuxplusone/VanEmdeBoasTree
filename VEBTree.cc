@@ -28,6 +28,9 @@ static uint zeros(uint k)
 
 static uint ones(uint k)
 {
+    if (k == BITS_PER_WORD) {
+        return -1u;
+    }
     return ~zeros(k);
 }
 

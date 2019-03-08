@@ -1,4 +1,5 @@
 #include "VEBTree.h"
+#include <cassert>
 #include <set>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,8 +27,34 @@ static std::vector<int> dump_backward(const VebTree& t)
     return result;
 }
 
+static void TestIssue1()
+{
+    VebTree t(513, false);
+    std::set<int> expected;
+    for (int i=0; i < 33; ++i) {
+        t.put(i);
+        expected.insert(i);
+    }
+    std::vector<int> actual = dump_backward(t);
+    assert(std::equal(actual.begin(), actual.end(), expected.rbegin(), expected.rend()));
+}
+
+static void TestIssue2()
+{
+    VebTree t(32, false);
+    std::set<int> expected;
+    std::vector<int> actual;
+    t.put(0);
+    assert(t.pred(31) == 0);
+    assert(t.pred(0) == 0);
+    assert(t.pred(-1) == 32);
+}
+
 int main()
 {
+    TestIssue1();
+    TestIssue2();
+
     int N = 500;
     int M = 100;
 
