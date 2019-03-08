@@ -164,49 +164,50 @@ static VV branch(VV S, uint i)
     return T;
 }
 
-static bool
-empty(VebViewConst T)
+bool VebViewConst::empty() const
 {
+    VebViewConst T = *this;
     if (T.M <= BITS_PER_WORD) {
         return decode(T.D, bytes(T.M)) == 0;
     }
     return (low(T) > high(T));
 }
 
-static void
-mkempty(VebView T)
+void VebView::mkempty() const
 {
+    VebView T = *this;
     if (T.M <= BITS_PER_WORD) {
         encode(T.D, bytes(T.M), 0);
         return;
     }
     setlow(T, 1);
     sethigh(T, 0);
-    mkempty(aux(T));
+    aux(T).mkempty();
     uint m = highbits(T.M-1, T.k/2) + 1;
     for (uint i = 0; i < m; ++i) {
-        mkempty(branch(T, i));
+        branch(T, i).mkempty();
     }
 }
 
-void VebTree::vebmkfull(VebView T)
+void VebView::mkfull() const
 {
+    VebView T = *this;
     if (T.M <= BITS_PER_WORD) {
         encode(T.D, bytes(T.M), ones(T.M));
         return;
     }
     setlow(T, 0);
     sethigh(T, T.M-1);
-    vebmkfull(aux(T));
+    aux(T).mkfull();
     uint m = highbits(T.M-1, T.k/2) + 1;
     for (uint i = 0; i < m; ++i) {
         VebView B = branch(T, i);
-        vebmkfull(B);
+        B.mkfull();
         if (i == 0) {
-            vebdel(B, 0);
+            B.del(0);
         }
         if (i == m-1) {
-            vebdel(B, lowbits(T.M-1, T.k/2));
+            B.del(lowbits(T.M-1, T.k/2));
         }
     }
 }
@@ -217,21 +218,22 @@ VebTree::VebTree(unsigned M, bool full)
     this->D = std::make_unique<unsigned char[]>(vebsize(M));
     this->M = M;
     if (full) {
-        vebmkfull(this->view());
+        this->view().mkfull();
     } else {
-        mkempty(this->view());
+        this->view().mkempty();
     }
 }
 
-void VebTree::vebput(VebView T, unsigned int x)
+void VebView::put(unsigned int x) const
 {
+    VebView T = *this;
     if (x >= T.M)
         return;
     if (T.M <= BITS_PER_WORD) {
         set(T.D, x);
         return;
     }
-    if (empty(T)) {
+    if (T.empty()) {
         setlow(T, x);
         sethigh(T, x);
         return;
@@ -257,15 +259,16 @@ void VebTree::vebput(VebView T, unsigned int x)
     uint i = highbits(x, T.k/2);
     uint j = lowbits(x, T.k/2);
     VebView B = branch(T, i);
-    vebput(B, j);
+    B.put(j);
     if (low(B) == high(B)) {
-        vebput(aux(T), i);
+        aux(T).put(i);
     }
 }
 
-void VebTree::vebdel(VebView T, unsigned int x)
+void VebView::del(unsigned int x) const
 {
-    if (empty(T) || x >= T.M) {
+    VebView T = *this;
+    if (T.empty() || x >= T.M) {
         return;
     }
     if (T.M <= BITS_PER_WORD) {
@@ -287,7 +290,7 @@ void VebTree::vebdel(VebView T, unsigned int x)
     VebView B;
     VebView A = aux(T);
     if (x == lo) {
-        if (empty(A)) {
+        if (A.empty()) {
             setlow(T, hi);
             return;
         } else {
@@ -297,7 +300,7 @@ void VebTree::vebdel(VebView T, unsigned int x)
             setlow(T, (i << (T.k/2)) + j);
         }
     } else if (x == hi) {
-        if (empty(A)) {
+        if (A.empty()) {
             sethigh(T, lo);
             return;
         } else {
@@ -311,16 +314,17 @@ void VebTree::vebdel(VebView T, unsigned int x)
         j = lowbits(x, T.k/2);
         B = branch(T, i);
     }
-    vebdel(B, j);
-    if (empty(B)) {
-        vebdel(A, i);
+    B.del(j);
+    if (B.empty()) {
+        A.del(i);
     }
 }
 
-unsigned int VebTree::vebsucc(VebViewConst T, unsigned int x)
+unsigned int VebViewConst::succ(unsigned int x) const
 {
+    VebViewConst T = *this;
     uint hi = high(T);
-    if (empty(T) || x > hi) {
+    if (T.empty() || x > hi) {
         return T.M;
     }
     if (T.M <= BITS_PER_WORD) {
@@ -336,16 +340,16 @@ unsigned int VebTree::vebsucc(VebViewConst T, unsigned int x)
         return lo;
     }
     VebViewConst A = aux(T);
-    if (empty(A) || x == hi) {
+    if (A.empty() || x == hi) {
         return hi;
     }
     uint i = highbits(x, T.k/2);
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
-    if (!empty(B) && j <= high(B)) {
-        return (i << (T.k/2)) + vebsucc(B, j);
+    if (!B.empty() && j <= high(B)) {
+        return (i << (T.k/2)) + B.succ(j);
     }
-    i = vebsucc(A, i + 1);
+    i = A.succ(i + 1);
     if (i == A.M) {
         return hi;
     }
@@ -353,10 +357,11 @@ unsigned int VebTree::vebsucc(VebViewConst T, unsigned int x)
     return (i << (T.k/2)) + low(B);
 }
 
-unsigned int VebTree::vebpred(VebViewConst T, unsigned int x)
+unsigned int VebViewConst::pred(unsigned int x) const
 {
+    VebViewConst T = *this;
     uint lo = low(T);
-    if (empty(T) || x < lo || x >= T.M) {
+    if (T.empty() || x < lo || x >= T.M) {
         return T.M;
     }
     if (T.M <= BITS_PER_WORD) {
@@ -372,16 +377,16 @@ unsigned int VebTree::vebpred(VebViewConst T, unsigned int x)
         return hi;
     }
     VebViewConst A = aux(T);
-    if (empty(A) || x == lo) {
+    if (A.empty() || x == lo) {
         return lo;
     }
     uint i = highbits(x, T.k/2);
     uint j = lowbits(x, T.k/2);
     VebViewConst B = branch(T, i);
-    if (!empty(B) && j >= low(B)) {
-        return (i << (T.k/2)) + vebpred(B, j);
+    if (!B.empty() && j >= low(B)) {
+        return (i << (T.k/2)) + B.pred(j);
     }
-    i = vebpred(A, i-1);
+    i = A.pred(i-1);
     if (i == A.M) {
         return lo;
     }

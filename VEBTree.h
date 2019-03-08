@@ -6,6 +6,10 @@ struct VebViewConst {
     const unsigned char *D;
     unsigned int k;
     unsigned int M;
+
+    bool empty() const;
+    unsigned int succ(unsigned int) const;
+    unsigned int pred(unsigned int) const;
 };
 
 struct VebView {
@@ -14,6 +18,12 @@ struct VebView {
     unsigned int M;
 
     operator VebViewConst() const { return VebViewConst{D, k, M}; }
+
+    bool empty() const { return VebViewConst(*this).empty(); }
+    void mkfull() const;
+    void mkempty() const;
+    void del(unsigned int) const;
+    void put(unsigned int) const;
 };
 
 class VebTree {
@@ -29,19 +39,13 @@ class VebTree {
         return VebViewConst{D.get(), k, M};
     }
 
-    static void vebmkfull(VebView T);
-    static void vebdel(VebView, unsigned int);
-    static void vebput(VebView, unsigned int);
-    static unsigned int vebsucc(VebViewConst, unsigned int);
-    static unsigned int vebpred(VebViewConst, unsigned int);
-
 public:
     explicit VebTree(unsigned M, bool full);
 
     unsigned capacity() const { return M; }
 
-    void del(unsigned x) { vebdel(view(), x); }
-    void put(unsigned x) { vebput(view(), x); }
-    unsigned succ(unsigned x) const { return vebsucc(view(), x); }
-    unsigned pred(unsigned x) const { return vebpred(view(), x); }
+    void del(unsigned x) { view().del(x); }
+    void put(unsigned x) { view().put(x); }
+    unsigned succ(unsigned x) const { return view().succ(x); }
+    unsigned pred(unsigned x) const { return view().pred(x); }
 };
