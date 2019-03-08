@@ -16,12 +16,7 @@ struct VebView {
     operator VebViewConst() const { return VebViewConst{D, k, M}; }
 };
 
-void vebdel(VebView, unsigned int);
-void vebput(VebView, unsigned int);
-unsigned int vebsucc(VebViewConst, unsigned int);
-unsigned int vebpred(VebViewConst, unsigned int);
-
-struct VebTree {
+class VebTree {
     std::unique_ptr<unsigned char[]> D;
     unsigned int k;
     unsigned int M;
@@ -34,10 +29,19 @@ struct VebTree {
         return VebViewConst{D.get(), k, M};
     }
 
+    static void vebmkfull(VebView T);
+    static void vebdel(VebView, unsigned int);
+    static void vebput(VebView, unsigned int);
+    static unsigned int vebsucc(VebViewConst, unsigned int);
+    static unsigned int vebpred(VebViewConst, unsigned int);
+
+public:
     explicit VebTree(unsigned M, bool full);
+
+    unsigned capacity() const { return M; }
 
     void del(unsigned x) { vebdel(view(), x); }
     void put(unsigned x) { vebput(view(), x); }
-    void succ(unsigned x) const { vebsucc(view(), x); }
-    void pred(unsigned x) const { vebpred(view(), x); }
+    unsigned succ(unsigned x) const { return vebsucc(view(), x); }
+    unsigned pred(unsigned x) const { return vebpred(view(), x); }
 };

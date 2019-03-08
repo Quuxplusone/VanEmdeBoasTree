@@ -189,8 +189,7 @@ mkempty(VebView T)
         mkempty(branch(T,i));
 }
 
-static void
-mkfull(VebView T)
+void VebTree::vebmkfull(VebView T)
 {
     if (T.M <= WORD) {
         encode(T.D,bytes(T.M),ones(T.M));
@@ -198,11 +197,11 @@ mkfull(VebView T)
     }
     setlow(T,0);
     sethigh(T,T.M-1);
-    mkfull(aux(T));
+    vebmkfull(aux(T));
     uint m = highbits(T.M-1,T.k/2)+1;
     for (uint i = 0; i < m; ++i) {
         VebView B = branch(T,i);
-        mkfull(B);
+        vebmkfull(B);
         if (i == 0)
             vebdel(B,0);
         if (i == m-1)
@@ -216,13 +215,13 @@ VebTree::VebTree(unsigned M, bool full)
     this->D = std::make_unique<unsigned char[]>(vebsize(M));
     this->M = M;
     if (full) {
-        mkfull(this->view());
+        vebmkfull(this->view());
     } else {
         mkempty(this->view());
     }
 }
 
-void vebput(VebView T, unsigned int x)
+void VebTree::vebput(VebView T, unsigned int x)
 {
     if (x >= T.M)
         return;
@@ -258,7 +257,7 @@ void vebput(VebView T, unsigned int x)
         vebput(aux(T),i);
 }
 
-void vebdel(VebView T, unsigned int x)
+void VebTree::vebdel(VebView T, unsigned int x)
 {
     if (empty(T) || x >= T.M)
         return;
@@ -308,7 +307,7 @@ void vebdel(VebView T, unsigned int x)
         vebdel(A,i);
 }
 
-unsigned int vebsucc(VebViewConst T, unsigned int x)
+unsigned int VebTree::vebsucc(VebViewConst T, unsigned int x)
 {
     uint hi = high(T);
     if (empty(T) || x > hi)
@@ -338,7 +337,7 @@ unsigned int vebsucc(VebViewConst T, unsigned int x)
     return i*ipow(T.k/2)+low(B);
 }
 
-unsigned int vebpred(VebViewConst T, unsigned int x)
+unsigned int VebTree::vebpred(VebViewConst T, unsigned int x)
 {
     uint lo = low(T);
     if (empty(T) || x < lo || x >= T.M)
