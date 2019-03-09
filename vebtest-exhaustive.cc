@@ -7,9 +7,7 @@
 static std::vector<int> dump_forward(const VebTree& t)
 {
     std::vector<int> result;
-    for (int x = -1; true; ) {
-        x = t.succ(x + 1);
-        if (x == int(t.capacity())) break;
+    for (int x : t) {
         result.push_back(x);
     }
     return result;
@@ -18,10 +16,8 @@ static std::vector<int> dump_forward(const VebTree& t)
 static std::vector<int> dump_backward(const VebTree& t)
 {
     std::vector<int> result;
-    for (int x = t.capacity(); true; ) {
-        x = t.pred(x - 1);
-        if (x == int(t.capacity())) break;
-        result.push_back(x);
+    for (auto it = t.rbegin(); it != t.rend(); ++it) {
+        result.push_back(*it);
     }
     return result;
 }

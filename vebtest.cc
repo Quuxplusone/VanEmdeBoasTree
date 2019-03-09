@@ -8,9 +8,7 @@
 static std::vector<int> dump_forward(const VebTree& t)
 {
     std::vector<int> result;
-    for (int x = -1; true; ) {
-        x = t.succ(x + 1);
-        if (x == int(t.capacity())) break;
+    for (int x : t) {
         result.push_back(x);
     }
     return result;
@@ -19,10 +17,8 @@ static std::vector<int> dump_forward(const VebTree& t)
 static std::vector<int> dump_backward(const VebTree& t)
 {
     std::vector<int> result;
-    for (int x = t.capacity(); true; ) {
-        x = t.pred(x - 1);
-        if (x == int(t.capacity())) break;
-        result.push_back(x);
+    for (auto it = t.rbegin(); it != t.rend(); ++it) {
+        result.push_back(*it);
     }
     return result;
 }
@@ -50,10 +46,23 @@ static void TestIssue2()
     assert(t.pred(-1) == 32);
 }
 
+static void TestClear()
+{
+    VebTree t(100, false);
+    assert(t.empty());
+    for (int i=0; i < 10; ++i) {
+        t.put(rand() % 100);
+        assert(!t.empty());
+    }
+    t.clear();
+    assert(t.empty());
+}
+
 int main()
 {
     TestIssue1();
     TestIssue2();
+    TestClear();
 
     int N = 500;
     int M = 100;
